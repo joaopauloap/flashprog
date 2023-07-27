@@ -10,8 +10,10 @@ const int eeprom_size = 512; //*1024
 const int sector_size = 256;
 
 void setAddress(int address);              //função para seleção do endereço
+void setDataBus(int mode);                //função para setar barramento de dados como entrada/saída
 byte readEEPROM(int address);              //função para leitura de um byte
 byte writeByte(int address, byte dataByte);   //função para escrever um byte 
+void fillBlock(int address, byte dataByte);   //função para preencher um bloco com um byte
 void writeBlock(int address, byte dataArray[sector_size]); //função para escrever um bloco
 void dataPolling(byte dataByte);               //função de polling de dados
 void printData();                          //função para imprimir os dados no monitor serial
@@ -50,10 +52,11 @@ void setup() {
 
   Serial.begin(250000);  //inicializa Serial em 250000 bits por segundo
 
-  //writeByte(0x30,0x11);
-  writeBlock(0,testData);
-  printData();  //imprime o conteúdo da EEPROM no monitor serial
+  //writeByte(0x100,0x11);
+  fillBlock(0x00,0x99);
+  writeBlock(0x100,testData);
 
+  printData();  //imprime o conteúdo da EEPROM no monitor serial
 }
 
 
@@ -71,13 +74,17 @@ void setAddress(int address) {
 
 }  
 
-void dataPolling(byte dataByte){
-    //configura pinos de dados como entrada
+void setDataBus(int mode){   
   for (int i = 0; i < 8; i++) {
     int pin = pinSequence[i];
-    pinMode(pin, INPUT);
+    pinMode(pin, mode);
   }
-  
+}
+
+void dataPolling(byte dataByte){
+
+  setDataBus(INPUT); //configura pinos de dados como entrada
+
   delayMicroseconds(1);
   byte b1=0, b2=0;
 
@@ -110,11 +117,8 @@ void dataPolling(byte dataByte){
 }
 
 byte readEEPROM(int address) {
-  //configura pinos de dados como entrada
-  for (int i = 0; i < 8; i++) {
-    int pin = pinSequence[i];
-    pinMode(pin, INPUT);
-  }
+  
+  setDataBus(INPUT); //configura pinos de dados como entrada
 
   digitalWrite(pin_we, HIGH);   //desativa a escrita
   digitalWrite(pin_ce, LOW);   //ativa a eeprom  
@@ -138,16 +142,12 @@ byte readEEPROM(int address) {
 }
 
 byte writeByte(int address, byte dataByte) {
-  //configura os pinos de dados como saída
-  for (int i = 0; i < 8; i++) {
-    int pin = pinSequence[i];
-    pinMode(pin, OUTPUT);
-  }
+
+  setDataBus(OUTPUT); //configura pinos de dados como saída
 
   digitalWrite(pin_oe, HIGH);   //desativa entrada no barramento de dados
   digitalWrite(pin_we, HIGH);   //desativa escrita
   digitalWrite(pin_ce, LOW);   //ativa a eeprom  
-
  
   setAddress(address);   // Configura o endereço nos pinos de endereço
 
@@ -166,19 +166,44 @@ byte writeByte(int address, byte dataByte) {
   dataPolling(dataByte);  //verifica fim do ciclo de escrita em memórias flash
 }  
 
-void writeBlock(int address, byte dataArray[sector_size]) {
+void fillBlock(int address, byte dataByte) {
 
-  //configura os pinos de dados como saída
-  for (int i = 0; i < 8; i++) {
-    int pin = pinSequence[i];
-    pinMode(pin, OUTPUT);
-  }
+  setDataBus(OUTPUT); //configura pinos de dados como saída
 
   digitalWrite(pin_oe, HIGH);   //desativa entrada no barramento de dados
   digitalWrite(pin_we, HIGH);   //desativa escrita
   digitalWrite(pin_ce, LOW);   //ativa a eeprom  
 
-  for (uint32_t ix = 0; (ix < sector_size); ix++)
+  for (uint32_t ix = 0; ix < sector_size; ix++)
+  {
+    setAddress(address + ix);   // Configura o endereço nos pinos de endereço
+
+    //Latch dos dados
+    byte byteValue = dataByte;
+    for (int i = 0; i < 8; i++) {
+      int pin = pinSequence[i];
+      digitalWrite(pin, byteValue & 1);
+      byteValue = byteValue >> 1;
+    }
+    
+    delayMicroseconds(1);
+    digitalWrite(pin_we, LOW);
+    delayMicroseconds(1);
+    digitalWrite(pin_we, HIGH);   
+  }
+
+  dataPolling(dataByte);  //verifica fim do ciclo de escrita em memórias flash
+}  
+
+void writeBlock(int address, byte dataArray[sector_size]) {
+
+  setDataBus(OUTPUT); //configura pinos de dados como saída
+
+  digitalWrite(pin_oe, HIGH);   //desativa entrada no barramento de dados
+  digitalWrite(pin_we, HIGH);   //desativa escrita
+  digitalWrite(pin_ce, LOW);   //ativa a eeprom  
+
+  for (uint32_t ix = 0; ix < sector_size; ix++)
   {
 
     setAddress(address + ix);   // Configura o endereço nos pinos de endereço
@@ -200,7 +225,7 @@ void writeBlock(int address, byte dataArray[sector_size]) {
 }  
 
 void printData() {
-  //imprime os primeiros x endereços de dados
+  //imprime os primeiros N endereços de dados
   for (int base = 0; base <= eeprom_size; base += 16) {
     byte data[16];
 
@@ -220,10 +245,6 @@ void printData() {
 }
 
 void eraseEEPROM() {
-
-  // for (int address = 0; address <= eeprom_size; address++) {  //apaga EEPROM escrevendo FFh em
-  //   writeByte(address, 0xFF);                               //todos os endereços
-  // }
 
 }
 

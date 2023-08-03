@@ -7,7 +7,7 @@ import os
 import sys
 
 BAUD_RATE = 250000
-EEPROM_SIZE = 65536;
+EEPROM_SIZE = 256*1024;
 SECTOR_SIZE = 256;
 
 def listar_portas_seriais():
@@ -59,7 +59,7 @@ def realizar_leitura_dados(porta_serial):
         print("Conexão serial estabelecida. Aguarde...")
 
         # # Envia um comando para solicitar os dados ao dispositivo
-        conexao_serial.write(b'r')
+        conexao_serial.write(b'd')
 
         # Leitura da resposta do dispositivo
         while True:

@@ -11,9 +11,9 @@ const int sector_size = 256;
 
 void setAddress(unsigned long address);                               //função para seleção do endereço
 void setDataBus(int mode);                                            //função para setar barramento de dados como entrada/saída
-byte readEEPROM(unsigned long address);                                         //função para leitura de um byte
-byte writeByte(unsigned long address, byte dataByte);                           //função para escrever um byte
-void fillBlock(unsigned long address, byte dataByte);                           //função para preencher um bloco com um byte
+byte readEEPROM(unsigned long address);                               //função para leitura de um byte
+byte writeByte(unsigned long address, byte dataByte);                 //função para escrever um byte
+void fillBlock(unsigned long address, byte dataByte);                 //função para preencher um bloco com um byte
 void writeBlock(unsigned long address, byte dataArray[sector_size]);  //função para escrever um bloco
 void dataPolling(byte dataByte);                                      //função de polling de dados
 void printRawData();                                                  //função para imprimir dados brutos sem formatação
@@ -91,8 +91,7 @@ void loop() {
         // Processa o bloco recebido
         writeBlock(offset, block);
         receivedBytes = 0;
-        offset += 256;
-        // Serial.write('@');
+        offset += sector_size;
         Serial.println(offset);
       }
 
@@ -101,10 +100,11 @@ void loop() {
 }
 
 void setAddress(unsigned long address) {
+
   shiftOut(shift_data, shift_clk, MSBFIRST, (address >> 16) & 0xFF);
   shiftOut(shift_data, shift_clk, MSBFIRST, (address >> 8) & 0xFF);
   shiftOut(shift_data, shift_clk, MSBFIRST, address & 0xFF);
-
+  
   //gera pulso de latch para escrever dados nas saídas dos shift registers
   digitalWrite(shift_latch, LOW);
   digitalWrite(shift_latch, HIGH);
@@ -208,7 +208,7 @@ void fillBlock(unsigned long address, byte dataByte) {
   digitalWrite(pin_we, HIGH);  //desativa escrita
   digitalWrite(pin_ce, LOW);   //ativa a eeprom
 
-  for (unsigned long ix = 0; ix < sector_size; ix++) {
+  for (int ix = 0; ix < sector_size; ix++) {
     setAddress(address + ix);  // Configura o endereço nos pinos de endereço
 
     //Latch dos dados
@@ -236,7 +236,7 @@ void writeBlock(unsigned long address, byte dataArray[sector_size]) {
   digitalWrite(pin_we, HIGH);  //desativa escrita
   digitalWrite(pin_ce, LOW);   //ativa a eeprom
 
-  for (unsigned long ix = 0; ix < sector_size; ix++) {
+  for (int ix = 0; ix < sector_size; ix++) {
 
     setAddress(address + ix);  // Configura o endereço nos pinos de endereço
 
